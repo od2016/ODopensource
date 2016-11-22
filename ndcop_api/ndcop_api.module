@@ -1,0 +1,87 @@
+<?php
+
+// 載入Log紀錄，驗證，共同設定和常用Help function
+module_load_include('inc', 'ndcop_api', 'ndcop_api.log');
+module_load_include('inc', 'ndcop_api', 'ndcop_api.validate');
+module_load_include('inc', 'ndcop_api', 'ndcop_api.config');
+module_load_include('inc', 'ndcop_api', 'ndcop_api.common');
+
+/**
+ * Implements hook_menu().
+ */
+function ndcop_api_menu() {
+  $items = array();
+
+  // 欄位關鍵字:文字欄位轉為Taxonomy
+
+  $items['dataset/keywords/page'] = array(
+    'page callback' => 'ndcop_api_keywords_page',
+    'access callback' => 'user_access',
+    'access arguments' => 'administrator',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file'=> 'ndcop_api.keywords.process.inc',
+    );
+  $items['dataset/keywords/list'] = array(
+    'page callback' => 'ndcop_api_keywords_list',
+    'access callback' => 'user_access',
+    'access arguments' => 'administrator',
+    'type' => MENU_CALLBACK,
+    'file'=> 'ndcop_api.keywords.process.inc',
+    );
+  $items['dataset/keywords/batch'] = array(
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ndcop_api_keywords_batch_form'),
+    'access callback' => 'user_access',
+    'access arguments' => 'administrator',
+    'type' => MENU_CALLBACK,
+    'file'=> 'ndcop_api.keywords.process.inc',
+    );
+
+   // 資料集序號identifier後五碼更新為六碼
+  $items['dataset/serialno/page'] = array(
+    'page callback' => 'ndcop_api_serialno_page',
+    'access callback' => 'user_access',
+    'access arguments' => 'administrator',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file'=> 'ndcop_api.serialno.process.inc',
+    );
+  $items['dataset/serialno/batch'] = array(
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ndcop_api_serialno_batch_form'),
+    'access callback' => 'user_access',
+    'access arguments' => 'administrator',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file'=> 'ndcop_api.serialno.process.inc',
+    );
+  $items['dataset/resources/batch'] = array(
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ndcop_api_resources_transfer_batch_form'),
+    'access callback' => 'user_access',
+    'access arguments' => 'administrator',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file'=> 'ndcop_api.resources.process.inc',
+    );
+
+    // 跨平臺介接前置作業
+  $items['dataset/identifier/mapping/export'] = array(
+    'title'=> '跨平臺介接前置匯出',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ndcop_api_id_mapping_process_export_form'),
+    'access callback' => 'user_access',
+    'access arguments' => 'administrator',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file'=> 'ndcop_api.identifier.mapping.inc',
+    );
+
+  $items['dataset/identifier/mapping/import'] = array(
+    'title'=> '跨平臺介接前置匯入',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ndcop_api_id_mapping_process_import_form'),
+    'access callback' => 'user_access',
+    'access arguments' => 'administrator',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file'=> 'ndcop_api.identifier.mapping.inc',
+    );
+
+  return $items;
+}

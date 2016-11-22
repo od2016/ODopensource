@@ -1,0 +1,5 @@
+name = NDC OpenData API
+description = "依照NDC頒布之共通性資料存取應用程式介面(API)規範"
+version = 7.x-1.0
+core = 7.x
+package = NDCOPAPI

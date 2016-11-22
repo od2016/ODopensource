@@ -1,0 +1,231 @@
+<?php
+
+/**
+ * @file
+ * 負責處理資料集詮釋資料API.
+ * TODO:
+ */
+
+// 載入identifier處理流程, 資料項目(resouce)處理
+module_load_include('inc', 'ndcop_dataset_api', 'ndcop_dataset_api.identifier');
+module_load_include('inc', 'ndcop_dataset_api', 'ndcop_dataset_api.resource');
+module_load_include('inc', 'ndcop_dataset_api', 'ndcop_dataset_api.comment');
+
+
+/*
+ * Implements hook_cronapi(). 此hookfunction由elysia_cron module提供
+ */
+function ndcop_dataset_api_cronapi($op, $job = NULL) {
+
+  module_load_include('inc', 'ndcop_dataset_api', 'ndcop_dataset_api.cronjobs');
+  $items['ndcop_dataset_api_harvest_cron_job'] = array(
+    'description' => t('NDC OPENDATA API定期擷取排程(Harvest)整點'),
+    'rule' => '0 * * * *', // 整點
+    'callback' => 'ndcop_dataset_api_harvest_cron',
+    );
+
+  $items['ndcop_dataset_api_harvest_halfclock_cron_job'] = array(
+    'description' => t('NDC OPENDATA API定期擷取排程(Harvest)30分'),
+    'rule' => '30 * * * *', // 30分
+    'callback' => 'ndcop_dataset_api_harvest_halfclock_cron',
+    );
+
+  return $items;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function ndcop_dataset_api_menu() {
+  $items = array();
+
+  // 取得分類群組清單
+  $items[SRU.'rest/group'] = array(
+    'page callback' => 'ndcop_dataset_api_category_list',
+    'access callback' => 'ndcop_dataset_api_access',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file' => 'ndcop_dataset_api.category.inc',
+    );
+
+  // 取得群組相關的資料集編號, % is categoryCode
+  $items[SRU.'rest/group/%'] = array(
+    'page callback' => 'ndcop_dataset_api_category_show',
+    'page arguments' => array(SRU_LENGTH+2),
+    'access callback' => 'ndcop_dataset_api_access',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file' => 'ndcop_dataset_api.category.inc',
+    );
+
+  // 取得標籤清單
+  $items[SRU.'rest/tag'] = array(
+    'page callback' => 'ndcop_dataset_api_tag_list',
+    'access callback' => 'ndcop_dataset_api_access',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file' => 'ndcop_dataset_api.tag.inc',
+    );
+
+  // 取得標籤相關的資料集編號
+  $items[SRU.'rest/tag/%'] = array(
+    'page callback' => 'ndcop_dataset_api_tag_show',
+    'page arguments' => array(SRU_LENGTH+2),
+    'access callback' => 'ndcop_dataset_api_access',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file' => 'ndcop_dataset_api.tag.inc',
+    );
+
+  // 取得資料集編號清單(GET)或新增詮釋資料(POST)
+  $items[SRU.'rest/dataset'] = array(
+    'page callback' => 'ndcop_dataset_api_control_dataset',
+    'access callback' => 'ndcop_dataset_api_access',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file' => 'ndcop_dataset_api.request.control.inc',
+    );
+
+  // 取得資料集詮釋資料(GET)、修改資料集詮釋資料(PUT)、刪除詮釋資料(DELETE)
+  $items[SRU.'rest/dataset/%'] = array(
+    'page callback' => 'ndcop_dataset_api_control_dataset_identifier',
+    'page arguments' => array(SRU_LENGTH+2),
+    'access callback' => 'ndcop_dataset_api_access',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file' => 'ndcop_dataset_api.request.control.inc',
+    );
+  // 指定部會底下所有metadataset數量總和
+  $items[SRU.'rest/org/%/dataset_count_statistic'] = array(
+    'page arguments' => array(SRU_LENGTH+2),
+    'page callback' => 'ndcop_dataset_api_control_count_statistic',
+    'access callback' => 'ndcop_dataset_api_access',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file' => 'ndcop_dataset_api.request.control.inc',
+    );
+// 指定部會底下所有metadataset之identifier清單
+  $items[SRU.'rest/org/%/dataset_identifier_list'] = array(
+    'page arguments' => array(SRU_LENGTH+2),
+    'page callback' => 'ndcop_dataset_api_control_dataset_identifier_list',
+    'access callback' => 'ndcop_dataset_api_access',
+    'type' => MENU_SUGGESTED_ITEM,
+    'file' => 'ndcop_dataset_api.request.control.inc',
+    );
+   // 後台管理者跨平臺介接設定
+  $items['admin_back/%/apiexchange/config'] = array(
+    'title'=> '跨平臺介接設定',
+    'description' => '跨平臺介接設定',
+    'access callback' => 'admin_author_org_page_access',
+    'access arguments' => array(1),
+    'page callback' => 'ndcop_dataset_api_exchang_setting_page',
+    'file' => 'ndcop_dataset_api.pages.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 12,
+    );
+
+  $items['apiexchange/config/%taxonomy_term/harvest'] = array(
+    'title'=> '跨平臺介接設定',
+    'description' => '跨平臺介接設定',
+    'access callback' => 'admin_author_org_page_access',
+    'access arguments' => array(1),
+    'page callback' => 'ndcop_dataset_api_exchang_org_setting_page',
+    'page arguments' => array(2, 3),
+    'file' => 'ndcop_dataset_api.pages.inc',
+    'type' => MENU_NORMAL_ITEM,
+    );
+
+  $items['apiexchange/config/%taxonomy_term/publish'] = array(
+    'title'=> '跨平臺介接設定',
+    'description' => '跨平臺介接設定',
+    'access callback' => 'admin_author_org_page_access',
+    'access arguments' => array(1),
+    'page callback' => 'ndcop_dataset_api_exchang_org_setting_page',
+    'page arguments' => array(2, 3),
+    'file' => 'ndcop_dataset_api.pages.inc',
+    'type' => MENU_NORMAL_ITEM,
+    );
+
+  // 後台管理者跨平臺介接紀錄
+  $items['admin_back/%/apiexchange/log'] = array(
+    'title'=> '跨平臺介接紀錄',
+    'description' => '跨平臺介接紀錄',
+    'access callback' => 'admin_author_org_page_access',
+    'access arguments' => array(1),
+    'page callback' => 'ndcop_dataset_api_exchang_log_page',
+    'page arguments' => array(0),
+    'file' => 'ndcop_dataset_api.pages.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 12,
+    );
+
+    // 部會管理者跨平臺介接紀錄
+  $items['admin_author/%/apiexchange/log'] = array(
+    'title'=> '跨平臺介接紀錄',
+    'description' => '跨平臺介接紀錄',
+    'access callback' => 'admin_author_user_page_access',
+    'access arguments' => array(1),
+    'page callback' => 'ndcop_dataset_api_exchang_log_admin_author_page',
+    'page arguments' => array(0),
+    'file' => 'ndcop_dataset_api.pages.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 5,
+    );
+
+  return $items;
+}
+
+/**
+ * NDC Dataset API存取權限
+ */
+function ndcop_dataset_api_access(){
+  return TRUE;
+}
+
+/**
+ * Implements hook_mail().
+ */
+function ndcop_dataset_api_mail( $key, &$message, $params ){
+
+  $test_string_nat = (strpos($_SERVER['HTTP_HOST'], 'nat') !== false)? 'nat.' : '' ;
+  $back_site_url = variable_get('ndcop_system_variables_back_site_url', 'cms.data.'.$test_string_nat.'gov.tw');
+  $site_url = variable_get('ndcop_system_variables_site_url', 'data.'.$test_string_nat.'gov.tw');
+  $opdata_phone = variable_get('opdata_phone', NULL);
+  $opdata_mail = variable_get('ndcop_system_variables_opdata_phone', 'opendata@ndc.gov.tw');
+  $mail_footer = variable_get('ndcop_system_variables_opdata_mail_footer', "\n\n此封信件為系統發送，請勿直接回信；若有任何意見請與政府資料開放平臺營運團隊聯繫，聯絡方式".$opdata_phone."或發送信件至".$opdata_mail."\n政府資料開放平臺營運團隊  敬復");
+
+  $test_string = (strpos($_SERVER['HTTP_HOST'], 'nat') !== false)? '(測試)' : '' ;
+
+  if(strpos($_SERVER['HTTP_HOST'], 'nat') !== false){
+    //測試版本
+    $test_list_array = array('gmail.com');
+  }
+  else{
+    //上線版本
+    $test_list_array = array('gmail.com');
+  }
+  $test_mail_list_str = implode(",", $test_list_array);
+
+  switch ($key) {
+    // Publish APIKEY申請回覆信
+    case 'apikey_info':
+
+    $subject = t($test_string. '政府資料開放平臺('.$site_url.')－Publish APIKEY申請通過通知');
+
+    $body = t("您好:\n貴平臺申請以PublishAPI與政府資料開放平臺（".$site_url."）介接詮釋資料集，已審核通過，\n詳細資訊如附加檔案：輸入您於跨平臺介接服務申請表之". $test_string ."機關IP，查看您的APIKEY內容 \n本平臺將以此IP及APIKEY作為貴單位網站介接之認證依據。" . $mail_footer);
+
+    $att1 = array(
+      'filepath' => $params['apikeyfilepath'],
+      'filename' => $params['apikeyfilename'],
+      'filemime' => 'application/zip',
+      );
+
+    $message['to'] = $params['publisher_mail'];
+    $message['headers']['bcc'] = $test_mail_list_str;
+    $message['subject'] = $subject;
+    $message['body'][] = $body;
+    $message['params']['attachments'][] = $att1;
+
+    watchdog('ndcop_dataset_api','%data',
+      array('%data' => 'Publish APIKEY申請通過通知寄送郵件', WATCHDOG_DEBUG));
+    break;
+
+    default:
+    drupal_set_message('預計開放資料集無此信件範本','warning');
+    watchdog('admin_dataset cron','%data', array('%data' => '預計開放資料集無此信件範本!', WATCHDOG_DEBUG));
+    break;
+  }
+}

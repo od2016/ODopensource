@@ -1,0 +1,8 @@
+name = NDC OpenData Dataset API
+description = "依照NDC頒布之共通性資料存取應用程式介面(API)規範開發相關資料集詮釋資料API"
+version = 7.x-1.0
+core = 7.x
+package = NDCOPAPI
+dependencies[] = ndcop_api
+dependencies[] = admin_author
+dependencies[] = elysia_cron
